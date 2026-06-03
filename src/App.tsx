@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
 function getSupabaseClient() {
@@ -10,79 +10,188 @@ function getSupabaseClient() {
 
 const GROUP_NAME = import.meta.env.VITE_GROUP_NAME || 'Thông tin ứng viên (Điền theo Form)';
 
-// Danh sách tỉnh thành Việt Nam năm 2026 (63 tỉnh thành)
-const LOCATIONS = [
-  'An Giang',
-  'Bà Rịa - Vũng Tàu',
-  'Bắc Giang',
-  'Bắc Kạn',
-  'Bạc Liêu',
-  'Bắc Ninh',
-  'Bến Tre',
-  'Bình Định',
-  'Bình Dương',
-  'Bình Phước',
-  'Bình Thuận',
-  'Cà Mau',
-  'Cần Thơ',
-  'Cao Bằng',
-  'Đà Nẵng',
-  'Đắk Lắk',
-  'Đắk Nông',
-  'Điện Biên',
-  'Đồng Nai',
-  'Đồng Tháp',
-  'Gia Lai',
-  'Hà Giang',
-  'Hà Nam',
+// Thành phố lớn ưu tiên hiển thị trước
+const PRIORITY_LOCATIONS = [
   'Hà Nội',
-  'Hà Tĩnh',
-  'Hải Dương',
-  'Hải Phòng',
-  'Hậu Giang',
-  'Hòa Bình',
-  'Hưng Yên',
-  'Khánh Hòa',
-  'Kiên Giang',
-  'Kon Tum',
-  'Lai Châu',
-  'Lâm Đồng',
-  'Lạng Sơn',
-  'Lào Cai',
-  'Long An',
-  'Nam Định',
-  'Nghệ An',
-  'Ninh Bình',
-  'Ninh Thuận',
-  'Phú Thọ',
-  'Phú Yên',
-  'Quảng Bình',
-  'Quảng Nam',
-  'Quảng Ngãi',
-  'Quảng Ninh',
-  'Quảng Trị',
-  'Sóc Trăng',
-  'Sơn La',
-  'Tây Ninh',
-  'Thái Bình',
-  'Thái Nguyên',
-  'Thanh Hóa',
-  'Thừa Thiên Huế',
-  'Tiền Giang',
   'TP. Hồ Chí Minh',
-  'Trà Vinh',
-  'Tuyên Quang',
-  'Vĩnh Long',
-  'Vĩnh Phúc',
-  'Yên Bái',
+  'Đà Nẵng',
+  'Hải Phòng',
+  'Cần Thơ',
+  'Bình Dương',
+  'Đồng Nai',
+  'Khánh Hòa',
+  'Quảng Ninh',
+  'Thừa Thiên Huế',
 ];
+
+const OTHER_LOCATIONS = [
+  'An Giang', 'Bà Rịa - Vũng Tàu', 'Bắc Giang', 'Bắc Kạn', 'Bạc Liêu',
+  'Bắc Ninh', 'Bến Tre', 'Bình Định', 'Bình Phước', 'Bình Thuận',
+  'Cà Mau', 'Cao Bằng', 'Đắk Lắk', 'Đắk Nông', 'Điện Biên',
+  'Đồng Tháp', 'Gia Lai', 'Hà Giang', 'Hà Nam', 'Hà Tĩnh',
+  'Hải Dương', 'Hậu Giang', 'Hòa Bình', 'Hưng Yên', 'Kiên Giang',
+  'Kon Tum', 'Lai Châu', 'Lâm Đồng', 'Lạng Sơn', 'Lào Cai',
+  'Long An', 'Nam Định', 'Nghệ An', 'Ninh Bình', 'Ninh Thuận',
+  'Phú Thọ', 'Phú Yên', 'Quảng Bình', 'Quảng Nam', 'Quảng Ngãi',
+  'Quảng Trị', 'Sóc Trăng', 'Sơn La', 'Tây Ninh', 'Thái Bình',
+  'Thái Nguyên', 'Thanh Hóa', 'Tiền Giang', 'Trà Vinh', 'Tuyên Quang',
+  'Vĩnh Long', 'Vĩnh Phúc', 'Yên Bái',
+];
+
+const ALL_LOCATIONS = [...PRIORITY_LOCATIONS, ...OTHER_LOCATIONS];
+
+// ── Custom multi-select với search + checkbox ─────────────────────────────────
+function LocationPicker({
+  selected, onChange,
+}: { selected: string[]; onChange: (v: string[]) => void }) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const ref = useRef<HTMLDivElement>(null);
+
+  // Đóng khi click ngoài
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  // Lọc theo search (bỏ dấu đơn giản)
+  const normalize = (s: string) =>
+    s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const filtered = ALL_LOCATIONS.filter(l =>
+    normalize(l).includes(normalize(search))
+  );
+
+  const toggle = (loc: string) => {
+    onChange(selected.includes(loc) ? selected.filter(x => x !== loc) : [...selected, loc]);
+  };
+
+  const displayLabel =
+    selected.length === 0
+      ? '-- Chọn địa điểm --'
+      : selected.length <= 2
+        ? selected.join(', ')
+        : `${selected[0]}, ${selected[1]} +${selected.length - 2} nơi khác`;
+
+  const isPriority = (loc: string) => PRIORITY_LOCATIONS.includes(loc);
+
+  return (
+    <div ref={ref} className="relative">
+      {/* Trigger button */}
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm text-left outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all bg-white flex items-center justify-between gap-2"
+      >
+        <span className={selected.length === 0 ? 'text-slate-400' : 'text-slate-800 truncate'}>
+          {displayLabel}
+        </span>
+        <svg className={`w-4 h-4 text-slate-400 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {/* Dropdown panel */}
+      {open && (
+        <div className="absolute z-40 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden">
+          {/* Search box */}
+          <div className="p-2 border-b border-slate-100">
+            <div className="flex items-center gap-2 bg-slate-50 rounded-lg px-3 py-2">
+              <svg className="w-3.5 h-3.5 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+              </svg>
+              <input
+                autoFocus
+                type="text"
+                placeholder="Tìm tỉnh thành..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="flex-1 bg-transparent text-xs text-slate-700 outline-none placeholder:text-slate-400"
+              />
+              {search && (
+                <button onClick={() => setSearch('')} className="text-slate-400 hover:text-slate-600">
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* List */}
+          <div className="max-h-52 overflow-y-auto">
+            {filtered.length === 0 ? (
+              <p className="text-xs text-slate-400 text-center py-4">Không tìm thấy</p>
+            ) : (
+              <>
+                {/* Separator nếu không search */}
+                {!search && (
+                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider px-3 pt-2 pb-1">
+                    ⭐ Thành phố lớn
+                  </p>
+                )}
+                {filtered.map((loc, idx) => {
+                  const isChecked = selected.includes(loc);
+                  const showOtherHeader =
+                    !search &&
+                    isPriority(filtered[idx - 1] ?? '') &&
+                    !isPriority(loc);
+                  return (
+                    <div key={loc}>
+                      {showOtherHeader && (
+                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider px-3 pt-2 pb-1 border-t border-slate-100">
+                          Tỉnh thành khác
+                        </p>
+                      )}
+                      <label
+                        className={`flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-blue-50 transition-colors ${isChecked ? 'bg-blue-50' : ''}`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => toggle(loc)}
+                          className="w-4 h-4 rounded accent-blue-600 cursor-pointer shrink-0"
+                        />
+                        <span className={`text-sm ${isChecked ? 'text-blue-700 font-semibold' : 'text-slate-700'}`}>
+                          {loc}
+                          {isPriority(loc) && !search && (
+                            <span className="ml-1.5 text-[10px] text-orange-400 font-normal">★</span>
+                          )}
+                        </span>
+                      </label>
+                    </div>
+                  );
+                })}
+              </>
+            )}
+          </div>
+
+          {/* Footer */}
+          {selected.length > 0 && (
+            <div className="border-t border-slate-100 px-3 py-2 flex items-center justify-between">
+              <span className="text-xs text-slate-500">Đã chọn: <strong>{selected.length}</strong> địa điểm</span>
+              <button
+                onClick={() => onChange([])}
+                className="text-xs text-red-400 hover:text-red-600 font-medium"
+              >
+                Bỏ chọn tất cả
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 type FormState = {
   full_name: string;
   birth_year: string;
   phone: string;
   position: string;
-  desired_location: string;
+  desired_locations: string[];   // mảng thay vì string
   notes: string;
 };
 
@@ -93,7 +202,7 @@ const EMPTY: FormState = {
   birth_year: '',
   phone: '',
   position: '',
-  desired_location: '',
+  desired_locations: [],
   notes: '',
 };
 
@@ -115,21 +224,15 @@ export default function App() {
       .select('code, name')
       .then(({ data, error }) => {
         if (error || !data) { setStep('no_config'); return; }
-
         const found = data.find((g: any) =>
           g.name.toLowerCase().trim() === GROUP_NAME.toLowerCase().trim()
         );
-
-        if (found) {
-          setGroupCode(found.code);
-          setStep('form');
-        } else {
-          setStep('no_config');
-        }
+        if (found) { setGroupCode(found.code); setStep('form'); }
+        else setStep('no_config');
       });
   }, []);
 
-  const set = (key: keyof FormState, val: string) =>
+  const set = (key: keyof FormState, val: any) =>
     setForm(prev => ({ ...prev, [key]: val }));
 
   const handleSubmit = async () => {
@@ -148,7 +251,7 @@ export default function App() {
         birth_year: form.birth_year.trim(),
         phone: form.phone.trim(),
         position: form.position,
-        desired_location: form.desired_location,
+        desired_location: form.desired_locations.join(', '),
         notes: form.notes.trim(),
         recruitment_status: 'P.TD chưa liên hệ',
         referral_date: new Date().toLocaleDateString('vi-VN'),
@@ -163,10 +266,8 @@ export default function App() {
   };
 
   const inputCls = "w-full border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all bg-white placeholder:text-slate-400";
-  // Tăng độ đậm màu label: đổi text-slate-500 → text-slate-700
   const labelCls = "block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5";
 
-  // ── Loading ──────────────────────────────────────────────────────────────────
   if (step === 'loading') return (
     <div className="min-h-screen bg-gradient-to-br from-[#0f2c5e] via-[#1a3a6b] to-[#1e4480] flex items-center justify-center">
       <div className="flex flex-col items-center gap-3">
@@ -179,7 +280,6 @@ export default function App() {
     </div>
   );
 
-  // ── No config ────────────────────────────────────────────────────────────────
   if (step === 'no_config') return (
     <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-xl p-8 max-w-sm w-full text-center">
@@ -190,7 +290,6 @@ export default function App() {
     </div>
   );
 
-  // ── Success ──────────────────────────────────────────────────────────────────
   if (step === 'success') return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-teal-100 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-xl p-8 max-w-sm w-full text-center">
@@ -203,34 +302,28 @@ export default function App() {
         <p className="text-sm text-slate-500 mb-8 leading-relaxed">
           Cảm ơn bạn đã quan tâm. Phòng nhân sự SGC sẽ liên hệ với bạn sớm nhất có thể.
         </p>
-        <button
-          onClick={() => { setForm(EMPTY); setStep('form'); }}
-          className="w-full py-3.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl transition-all text-sm"
-        >
+        <button onClick={() => { setForm(EMPTY); setStep('form'); }}
+          className="w-full py-3.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl transition-all text-sm">
           Điền thêm thông tin khác
         </button>
       </div>
     </div>
   );
 
-  // ── Error ────────────────────────────────────────────────────────────────────
   if (step === 'error') return (
     <div className="min-h-screen bg-gradient-to-br from-red-50 to-orange-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-xl p-8 max-w-sm w-full text-center">
         <div className="text-5xl mb-4">❌</div>
         <h2 className="text-xl font-black text-slate-800 mb-2">Có lỗi xảy ra</h2>
         <p className="text-sm text-red-500 mb-6 break-words">{errorMsg}</p>
-        <button
-          onClick={() => setStep('form')}
-          className="w-full py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl transition-all text-sm"
-        >
+        <button onClick={() => setStep('form')}
+          className="w-full py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl transition-all text-sm">
           Thử lại
         </button>
       </div>
     </div>
   );
 
-  // ── Form ─────────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#0f2c5e] via-[#1a3a6b] to-[#1e4480] flex items-center justify-center p-4 py-8">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
@@ -238,45 +331,26 @@ export default function App() {
         {/* Header */}
         <div className="bg-gradient-to-r from-[#1a3a6b] to-[#1e4480] px-6 py-6 relative">
           <div className="pr-24">
-            {/* SỬA: Đổi "SGC – Phòng Tuyển Dụng" thành tên công ty đầy đủ */}
-            <p className="text-blue-300 text-xs font-bold uppercase tracking-[0.15em] mb-1 leading-tight">
+            <p className="text-[#ffd166] text-xs font-extrabold uppercase tracking-[0.15em] mb-1 leading-tight">
               CÔNG TY CỔ PHẦN ĐẦU TƯ VÀ XÂY DỰNG SGC
             </p>
             <h1 className="text-white text-2xl font-black leading-tight">Đăng ký ứng tuyển</h1>
-            <p className="text-blue-200 text-xs mt-1.5 font-medium">{GROUP_NAME}</p>
+            <p className="text-white/80 text-xs mt-1.5 font-semibold italic">Chúng tôi cần bạn</p>
           </div>
-
-          {/* QR góc phải */}
-          <div
-            className="absolute top-4 right-4 cursor-pointer"
-            onClick={() => setShowQR(true)}
-            title="Bấm để xem QR lớn hơn"
-          >
+          <div className="absolute top-4 right-4 cursor-pointer" onClick={() => setShowQR(true)} title="Bấm để xem QR lớn hơn">
             <div className="bg-white rounded-xl p-1.5 shadow-lg hover:scale-105 transition-transform">
-              <img
-                src={QR_URL}
-                alt="QR ứng tuyển"
-                className="w-16 h-16 rounded-lg block"
-              />
+              <img src={QR_URL} alt="QR ứng tuyển" className="w-16 h-16 rounded-lg block" />
             </div>
             <p className="text-blue-300 text-[9px] text-center mt-1 font-medium">Chia sẻ QR</p>
           </div>
         </div>
 
-        {/* Modal phóng to QR */}
+        {/* Modal QR */}
         {showQR && (
-          <div
-            className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
-            onClick={() => setShowQR(false)}
-          >
-            <div
-              className="bg-white rounded-2xl p-6 flex flex-col items-center gap-4 shadow-2xl max-w-xs w-full"
-              onClick={e => e.stopPropagation()}
-            >
+          <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => setShowQR(false)}>
+            <div className="bg-white rounded-2xl p-6 flex flex-col items-center gap-4 shadow-2xl max-w-xs w-full" onClick={e => e.stopPropagation()}>
               <p className="text-slate-500 text-xs font-bold uppercase tracking-wider">Quét để ứng tuyển</p>
               <img src={QR_URL} alt="QR lớn" className="w-64 h-64 rounded-xl" />
-
-              {/* Link + nút copy */}
               <div className="w-full flex items-center gap-2 bg-slate-100 rounded-xl px-3 py-2">
                 <span className="text-slate-500 text-xs flex-1 truncate select-all">sgc-form-td.pages.dev</span>
                 <button
@@ -290,40 +364,45 @@ export default function App() {
                   {copied ? '✓ Đã copy' : 'Copy'}
                 </button>
               </div>
-
-              {/* Chia sẻ qua Zalo / Messenger */}
               <div className="w-full flex gap-2">
-                <a
-                  href={`https://zalo.me/share/url?url=${encodeURIComponent('https://sgc-form-td.pages.dev')}&title=${encodeURIComponent('Đăng ký ứng tuyển SGC – Công ty Cổ phần Đầu tư và Xây dựng SGC')}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <button
+                  onClick={async () => {
+                    try {
+                      const resp = await fetch(QR_URL);
+                      const blob = await resp.blob();
+                      const file = new File([blob], 'QR-UngTuyen-SGC.png', { type: 'image/png' });
+                      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                        await navigator.share({ files: [file], title: 'Đăng ký ứng tuyển SGC', text: 'Quét QR để đăng ký ứng tuyển tại SGC: https://sgc-form-td.pages.dev' });
+                      } else {
+                        window.open(`https://zalo.me/share/url?url=${encodeURIComponent('https://sgc-form-td.pages.dev')}&title=${encodeURIComponent('Đăng ký ứng tuyển SGC')}`, '_blank');
+                      }
+                    } catch (err) { console.error(err); }
+                  }}
                   className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-[#0068ff] hover:bg-[#0055cc] text-white rounded-xl text-xs font-bold transition-all"
                 >
-                  {/* Zalo icon */}
-                  <svg width="16" height="16" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <rect width="48" height="48" rx="10" fill="white" fillOpacity="0.2"/>
-                    <text x="5" y="34" fontSize="26" fontWeight="bold" fill="white" fontFamily="Arial">Z</text>
-                  </svg>
+                  <svg width="16" height="16" viewBox="0 0 48 48" fill="none"><text x="4" y="34" fontSize="28" fontWeight="bold" fill="white" fontFamily="Arial">Z</text></svg>
                   Zalo
-                </a>
-                <a
-                  href={`https://www.facebook.com/dialog/send?link=${encodeURIComponent('https://sgc-form-td.pages.dev')}&app_id=181477272309&redirect_uri=${encodeURIComponent('https://sgc-form-td.pages.dev')}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                </button>
+                <button
+                  onClick={async () => {
+                    try {
+                      const resp = await fetch(QR_URL);
+                      const blob = await resp.blob();
+                      const file = new File([blob], 'QR-UngTuyen-SGC.png', { type: 'image/png' });
+                      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                        await navigator.share({ files: [file], title: 'Đăng ký ứng tuyển SGC', text: 'Quét QR để đăng ký ứng tuyển tại SGC: https://sgc-form-td.pages.dev' });
+                      } else {
+                        window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent('https://sgc-form-td.pages.dev')}`, '_blank');
+                      }
+                    } catch (err) { console.error(err); }
+                  }}
                   className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-[#0099ff] hover:bg-[#007acc] text-white rounded-xl text-xs font-bold transition-all"
                 >
-                  {/* Messenger icon */}
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M12 2C6.477 2 2 6.145 2 11.243c0 2.914 1.318 5.52 3.396 7.28V22l3.102-1.707A10.7 10.7 0 0012 20.486c5.523 0 10-4.144 10-9.243C22 6.145 17.523 2 12 2zm1.07 12.423l-2.55-2.72-4.977 2.72 5.473-5.81 2.613 2.72 4.913-2.72-5.472 5.81z"/>
-                  </svg>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M12 2C6.477 2 2 6.145 2 11.243c0 2.914 1.318 5.52 3.396 7.28V22l3.102-1.707A10.7 10.7 0 0012 20.486c5.523 0 10-4.144 10-9.243C22 6.145 17.523 2 12 2zm1.07 12.423l-2.55-2.72-4.977 2.72 5.473-5.81 2.613 2.72 4.913-2.72-5.472 5.81z"/></svg>
                   Messenger
-                </a>
+                </button>
               </div>
-
-              <button
-                onClick={() => setShowQR(false)}
-                className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-sm font-bold transition-all"
-              >
+              <button onClick={() => setShowQR(false)} className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-sm font-bold transition-all">
                 Đóng
               </button>
             </div>
@@ -354,7 +433,6 @@ export default function App() {
               className={inputCls} autoComplete="tel" />
           </div>
 
-          {/* SỬA: Vị trí ứng tuyển → input text thay vì dropdown */}
           <div>
             <label className={labelCls}>Vị trí ứng tuyển</label>
             <input type="text" placeholder="Nhập vị trí bạn muốn ứng tuyển"
@@ -362,13 +440,13 @@ export default function App() {
               className={inputCls} />
           </div>
 
-          {/* SỬA: Dropdown địa điểm với đầy đủ 63 tỉnh thành Việt Nam */}
+          {/* Địa điểm: custom multi-select với search + checkbox */}
           <div>
             <label className={labelCls}>Địa điểm mong muốn làm việc</label>
-            <select value={form.desired_location} onChange={e => set('desired_location', e.target.value)} className={inputCls}>
-              <option value="">-- Chọn địa điểm --</option>
-              {LOCATIONS.map(l => <option key={l} value={l}>{l}</option>)}
-            </select>
+            <LocationPicker
+              selected={form.desired_locations}
+              onChange={locs => set('desired_locations', locs)}
+            />
           </div>
 
           <div>
@@ -385,7 +463,7 @@ export default function App() {
           )}
 
           <button onClick={handleSubmit} disabled={step === 'submitting'}
-            className="w-full py-4 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 disabled:opacity-60 text-white font-black rounded-xl transition-all shadow-lg shadow-orange-500/30 text-sm flex items-center justify-center gap-2 mt-2">
+            className="w-full py-4 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 disabled:opacity-60 text-white font-black rounded-xl transition-all shadow-lg shadow-orange-500/30 text-lg flex items-center justify-center gap-2 mt-2">
             {step === 'submitting' ? (
               <>
                 <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
