@@ -1,12 +1,11 @@
 import { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
-// ── Supabase: đọc từ biến môi trường (Cloudflare Pages) ──────────────────────
-// Khi deploy lên Cloudflare Pages, điền vào Environment Variables:
-//   VITE_SUPABASE_URL   = https://xxxx.supabase.co
+// ── Supabase: chỉ cần 3 biến môi trường trên Cloudflare Pages ────────────────
+//   VITE_SUPABASE_URL      = https://xxxx.supabase.co
 //   VITE_SUPABASE_ANON_KEY = eyJ...
-//   VITE_GROUP_CODE     = mã nhóm trong bảng settings_groups (VD: "FORM")
-//   VITE_GROUP_NAME     = tên hiển thị (VD: "Thông tin ứng viên (Điền theo Form)")
+//   VITE_GROUP_NAME        = Thông tin ứng viên (Điền theo Form)
+
 function getSupabaseClient() {
   const url = import.meta.env.VITE_SUPABASE_URL || '';
   const key = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
@@ -14,10 +13,8 @@ function getSupabaseClient() {
   return null;
 }
 
-const GROUP_CODE = import.meta.env.VITE_GROUP_CODE || '';
 const GROUP_NAME = import.meta.env.VITE_GROUP_NAME || 'Thông tin ứng viên (Điền theo Form)';
 
-// ── Danh sách vị trí & địa điểm ──────────────────────────────────────────────
 const POSITIONS = [
   'Công nhân sản xuất',
   'Kỹ thuật viên',
@@ -54,7 +51,7 @@ type FormState = {
   notes: string;
 };
 
-type Step = 'form' | 'submitting' | 'success' | 'error' | 'no_config';
+type Step = 'loading' | 'form' | 'submitting' | 'success' | 'error' | 'no_config';
 
 const EMPTY: FormState = {
   full_name: '',
@@ -67,12 +64,32 @@ const EMPTY: FormState = {
 
 export default function App() {
   const [form, setForm] = useState<FormState>(EMPTY);
-  const [step, setStep] = useState<Step>('form');
+  const [step, setStep] = useState<Step>('loading');
   const [errorMsg, setErrorMsg] = useState('');
+  const [groupCode, setGroupCode] = useState('');
 
+  // Tự động tìm group_code theo tên nhóm từ Supabase
   useEffect(() => {
     const sb = getSupabaseClient();
-    if (!sb || !GROUP_CODE) setStep('no_config');
+    if (!sb) { setStep('no_config'); return; }
+
+    sb.from('settings_groups')
+      .select('code, name')
+      .then(({ data, error }) => {
+        if (error || !data) { setStep('no_config'); return; }
+
+        // Tìm nhóm khớp tên (không phân biệt hoa thường)
+        const found = data.find((g: any) =>
+          g.name.toLowerCase().trim() === GROUP_NAME.toLowerCase().trim()
+        );
+
+        if (found) {
+          setGroupCode(found.code);
+          setStep('form');
+        } else {
+          setStep('no_config');
+        }
+      });
   }, []);
 
   const set = (key: keyof FormState, val: string) =>
@@ -89,7 +106,7 @@ export default function App() {
       if (!sb) throw new Error('Chưa cấu hình kết nối');
 
       const { error } = await sb.from('candidates').insert([{
-        group_type: GROUP_CODE,
+        group_type: groupCode,
         full_name: form.full_name.trim(),
         birth_year: form.birth_year.trim(),
         phone: form.phone.trim(),
@@ -110,6 +127,19 @@ export default function App() {
 
   const inputCls = "w-full border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all bg-white placeholder:text-slate-400";
   const labelCls = "block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5";
+
+  // ── Loading ──────────────────────────────────────────────────────────────────
+  if (step === 'loading') return (
+    <div className="min-h-screen bg-gradient-to-br from-[#0f2c5e] via-[#1a3a6b] to-[#1e4480] flex items-center justify-center">
+      <div className="flex flex-col items-center gap-3">
+        <svg className="animate-spin w-8 h-8 text-white/60" fill="none" viewBox="0 0 24 24">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+        </svg>
+        <p className="text-white/60 text-sm font-medium">Đang tải...</p>
+      </div>
+    </div>
+  );
 
   // ── No config ────────────────────────────────────────────────────────────────
   if (step === 'no_config') return (
@@ -177,51 +207,27 @@ export default function App() {
         {/* Fields */}
         <div className="p-6 space-y-4">
 
-          {/* Họ tên */}
           <div>
-            <label className={labelCls}>
-              Họ và tên <span className="text-red-400 normal-case font-normal">*</span>
-            </label>
-            <input
-              type="text"
-              placeholder="Nhập họ và tên đầy đủ"
-              value={form.full_name}
-              onChange={e => set('full_name', e.target.value)}
-              className={inputCls}
-              autoComplete="name"
-            />
+            <label className={labelCls}>Họ và tên <span className="text-red-400 normal-case font-normal">*</span></label>
+            <input type="text" placeholder="Nhập họ và tên đầy đủ"
+              value={form.full_name} onChange={e => set('full_name', e.target.value)}
+              className={inputCls} autoComplete="name" />
           </div>
 
-          {/* Năm sinh */}
           <div>
             <label className={labelCls}>Năm sinh</label>
-            <input
-              type="number"
-              placeholder="VD: 1995"
-              value={form.birth_year}
-              onChange={e => set('birth_year', e.target.value)}
-              className={inputCls}
-              min="1950"
-              max={new Date().getFullYear() - 15}
-            />
+            <input type="number" placeholder="VD: 1995"
+              value={form.birth_year} onChange={e => set('birth_year', e.target.value)}
+              className={inputCls} min="1950" max={new Date().getFullYear() - 15} />
           </div>
 
-          {/* SĐT */}
           <div>
-            <label className={labelCls}>
-              Số điện thoại <span className="text-red-400 normal-case font-normal">*</span>
-            </label>
-            <input
-              type="tel"
-              placeholder="VD: 0912 345 678"
-              value={form.phone}
-              onChange={e => set('phone', e.target.value)}
-              className={inputCls}
-              autoComplete="tel"
-            />
+            <label className={labelCls}>Số điện thoại <span className="text-red-400 normal-case font-normal">*</span></label>
+            <input type="tel" placeholder="VD: 0912 345 678"
+              value={form.phone} onChange={e => set('phone', e.target.value)}
+              className={inputCls} autoComplete="tel" />
           </div>
 
-          {/* Vị trí */}
           <div>
             <label className={labelCls}>Vị trí ứng tuyển</label>
             <select value={form.position} onChange={e => set('position', e.target.value)} className={inputCls}>
@@ -230,7 +236,6 @@ export default function App() {
             </select>
           </div>
 
-          {/* Địa điểm */}
           <div>
             <label className={labelCls}>Địa điểm mong muốn làm việc</label>
             <select value={form.desired_location} onChange={e => set('desired_location', e.target.value)} className={inputCls}>
@@ -239,31 +244,21 @@ export default function App() {
             </select>
           </div>
 
-          {/* Hồ sơ / Ghi chú */}
           <div>
             <label className={labelCls}>Hồ sơ cá nhân / Ghi chú thêm</label>
-            <textarea
-              placeholder="Mô tả kinh nghiệm, bằng cấp, hoặc thông tin bạn muốn chia sẻ..."
-              value={form.notes}
-              onChange={e => set('notes', e.target.value)}
-              className={inputCls + ' resize-none'}
-              rows={3}
-            />
+            <textarea placeholder="Mô tả kinh nghiệm, bằng cấp, hoặc thông tin bạn muốn chia sẻ..."
+              value={form.notes} onChange={e => set('notes', e.target.value)}
+              className={inputCls + ' resize-none'} rows={3} />
           </div>
 
-          {/* Error inline */}
           {errorMsg && step === 'form' && (
             <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-600 font-medium">
               {errorMsg}
             </div>
           )}
 
-          {/* Submit */}
-          <button
-            onClick={handleSubmit}
-            disabled={step === 'submitting'}
-            className="w-full py-4 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 disabled:opacity-60 text-white font-black rounded-xl transition-all shadow-lg shadow-orange-500/30 text-sm flex items-center justify-center gap-2 mt-2"
-          >
+          <button onClick={handleSubmit} disabled={step === 'submitting'}
+            className="w-full py-4 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 disabled:opacity-60 text-white font-black rounded-xl transition-all shadow-lg shadow-orange-500/30 text-sm flex items-center justify-center gap-2 mt-2">
             {step === 'submitting' ? (
               <>
                 <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
