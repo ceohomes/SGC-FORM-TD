@@ -1,11 +1,6 @@
 import { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
-// ── Supabase: chỉ cần 3 biến môi trường trên Cloudflare Pages ────────────────
-//   VITE_SUPABASE_URL      = https://xxxx.supabase.co
-//   VITE_SUPABASE_ANON_KEY = eyJ...
-//   VITE_GROUP_NAME        = Thông tin ứng viên (Điền theo Form)
-
 function getSupabaseClient() {
   const url = import.meta.env.VITE_SUPABASE_URL || '';
   const key = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
@@ -15,31 +10,71 @@ function getSupabaseClient() {
 
 const GROUP_NAME = import.meta.env.VITE_GROUP_NAME || 'Thông tin ứng viên (Điền theo Form)';
 
-const POSITIONS = [
-  'Công nhân sản xuất',
-  'Kỹ thuật viên',
-  'Kỹ sư',
-  'Quản lý / Giám sát',
-  'Văn phòng / Hành chính',
-  'Kế toán / Tài chính',
-  'Bán hàng / Kinh doanh',
-  'Lái xe / Vận chuyển',
-  'Bảo vệ / An ninh',
-  'Vệ sinh công nghiệp',
-  'Khác',
-];
-
+// Danh sách tỉnh thành Việt Nam năm 2026 (63 tỉnh thành)
 const LOCATIONS = [
-  'Hà Nội',
-  'TP. Hồ Chí Minh',
-  'Đà Nẵng',
-  'Hải Phòng',
+  'An Giang',
+  'Bà Rịa - Vũng Tàu',
+  'Bắc Giang',
+  'Bắc Kạn',
+  'Bạc Liêu',
+  'Bắc Ninh',
+  'Bến Tre',
+  'Bình Định',
   'Bình Dương',
+  'Bình Phước',
+  'Bình Thuận',
+  'Cà Mau',
+  'Cần Thơ',
+  'Cao Bằng',
+  'Đà Nẵng',
+  'Đắk Lắk',
+  'Đắk Nông',
+  'Điện Biên',
   'Đồng Nai',
-  'Thanh Hóa',
-  'Nghệ An',
+  'Đồng Tháp',
+  'Gia Lai',
+  'Hà Giang',
+  'Hà Nam',
+  'Hà Nội',
   'Hà Tĩnh',
-  'Khác',
+  'Hải Dương',
+  'Hải Phòng',
+  'Hậu Giang',
+  'Hòa Bình',
+  'Hưng Yên',
+  'Khánh Hòa',
+  'Kiên Giang',
+  'Kon Tum',
+  'Lai Châu',
+  'Lâm Đồng',
+  'Lạng Sơn',
+  'Lào Cai',
+  'Long An',
+  'Nam Định',
+  'Nghệ An',
+  'Ninh Bình',
+  'Ninh Thuận',
+  'Phú Thọ',
+  'Phú Yên',
+  'Quảng Bình',
+  'Quảng Nam',
+  'Quảng Ngãi',
+  'Quảng Ninh',
+  'Quảng Trị',
+  'Sóc Trăng',
+  'Sơn La',
+  'Tây Ninh',
+  'Thái Bình',
+  'Thái Nguyên',
+  'Thanh Hóa',
+  'Thừa Thiên Huế',
+  'Tiền Giang',
+  'TP. Hồ Chí Minh',
+  'Trà Vinh',
+  'Tuyên Quang',
+  'Vĩnh Long',
+  'Vĩnh Phúc',
+  'Yên Bái',
 ];
 
 type FormState = {
@@ -70,8 +105,8 @@ export default function App() {
   const [errorMsg, setErrorMsg] = useState('');
   const [groupCode, setGroupCode] = useState('');
   const [showQR, setShowQR] = useState(false);
+  const [copied, setCopied] = useState(false);
 
-  // Tự động tìm group_code theo tên nhóm từ Supabase
   useEffect(() => {
     const sb = getSupabaseClient();
     if (!sb) { setStep('no_config'); return; }
@@ -81,7 +116,6 @@ export default function App() {
       .then(({ data, error }) => {
         if (error || !data) { setStep('no_config'); return; }
 
-        // Tìm nhóm khớp tên (không phân biệt hoa thường)
         const found = data.find((g: any) =>
           g.name.toLowerCase().trim() === GROUP_NAME.toLowerCase().trim()
         );
@@ -129,7 +163,8 @@ export default function App() {
   };
 
   const inputCls = "w-full border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all bg-white placeholder:text-slate-400";
-  const labelCls = "block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5";
+  // Tăng độ đậm màu label: đổi text-slate-500 → text-slate-700
+  const labelCls = "block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5";
 
   // ── Loading ──────────────────────────────────────────────────────────────────
   if (step === 'loading') return (
@@ -203,7 +238,10 @@ export default function App() {
         {/* Header */}
         <div className="bg-gradient-to-r from-[#1a3a6b] to-[#1e4480] px-6 py-6 relative">
           <div className="pr-24">
-            <p className="text-blue-300 text-xs font-bold uppercase tracking-[0.2em] mb-1">SGC – Phòng Tuyển Dụng</p>
+            {/* SỬA: Đổi "SGC – Phòng Tuyển Dụng" thành tên công ty đầy đủ */}
+            <p className="text-blue-300 text-xs font-bold uppercase tracking-[0.15em] mb-1 leading-tight">
+              CÔNG TY CỔ PHẦN ĐẦU TƯ VÀ XÂY DỰNG SGC
+            </p>
             <h1 className="text-white text-2xl font-black leading-tight">Đăng ký ứng tuyển</h1>
             <p className="text-blue-200 text-xs mt-1.5 font-medium">{GROUP_NAME}</p>
           </div>
@@ -237,7 +275,51 @@ export default function App() {
             >
               <p className="text-slate-500 text-xs font-bold uppercase tracking-wider">Quét để ứng tuyển</p>
               <img src={QR_URL} alt="QR lớn" className="w-64 h-64 rounded-xl" />
-              <p className="text-slate-400 text-xs text-center">sgc-form-td.pages.dev</p>
+
+              {/* Link + nút copy */}
+              <div className="w-full flex items-center gap-2 bg-slate-100 rounded-xl px-3 py-2">
+                <span className="text-slate-500 text-xs flex-1 truncate select-all">sgc-form-td.pages.dev</span>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText('https://sgc-form-td.pages.dev');
+                    setCopied(true);
+                    setTimeout(() => setCopied(false), 2000);
+                  }}
+                  className="shrink-0 text-xs font-bold px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-all"
+                >
+                  {copied ? '✓ Đã copy' : 'Copy'}
+                </button>
+              </div>
+
+              {/* Chia sẻ qua Zalo / Messenger */}
+              <div className="w-full flex gap-2">
+                <a
+                  href={`https://zalo.me/share/url?url=${encodeURIComponent('https://sgc-form-td.pages.dev')}&title=${encodeURIComponent('Đăng ký ứng tuyển SGC – Công ty Cổ phần Đầu tư và Xây dựng SGC')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-[#0068ff] hover:bg-[#0055cc] text-white rounded-xl text-xs font-bold transition-all"
+                >
+                  {/* Zalo icon */}
+                  <svg width="16" height="16" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect width="48" height="48" rx="10" fill="white" fillOpacity="0.2"/>
+                    <text x="5" y="34" fontSize="26" fontWeight="bold" fill="white" fontFamily="Arial">Z</text>
+                  </svg>
+                  Zalo
+                </a>
+                <a
+                  href={`https://www.facebook.com/dialog/send?link=${encodeURIComponent('https://sgc-form-td.pages.dev')}&app_id=181477272309&redirect_uri=${encodeURIComponent('https://sgc-form-td.pages.dev')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-[#0099ff] hover:bg-[#007acc] text-white rounded-xl text-xs font-bold transition-all"
+                >
+                  {/* Messenger icon */}
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 2C6.477 2 2 6.145 2 11.243c0 2.914 1.318 5.52 3.396 7.28V22l3.102-1.707A10.7 10.7 0 0012 20.486c5.523 0 10-4.144 10-9.243C22 6.145 17.523 2 12 2zm1.07 12.423l-2.55-2.72-4.977 2.72 5.473-5.81 2.613 2.72 4.913-2.72-5.472 5.81z"/>
+                  </svg>
+                  Messenger
+                </a>
+              </div>
+
               <button
                 onClick={() => setShowQR(false)}
                 className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-sm font-bold transition-all"
@@ -272,14 +354,15 @@ export default function App() {
               className={inputCls} autoComplete="tel" />
           </div>
 
+          {/* SỬA: Vị trí ứng tuyển → input text thay vì dropdown */}
           <div>
             <label className={labelCls}>Vị trí ứng tuyển</label>
-            <select value={form.position} onChange={e => set('position', e.target.value)} className={inputCls}>
-              <option value="">-- Chọn vị trí --</option>
-              {POSITIONS.map(p => <option key={p} value={p}>{p}</option>)}
-            </select>
+            <input type="text" placeholder="Nhập vị trí bạn muốn ứng tuyển"
+              value={form.position} onChange={e => set('position', e.target.value)}
+              className={inputCls} />
           </div>
 
+          {/* SỬA: Dropdown địa điểm với đầy đủ 63 tỉnh thành Việt Nam */}
           <div>
             <label className={labelCls}>Địa điểm mong muốn làm việc</label>
             <select value={form.desired_location} onChange={e => set('desired_location', e.target.value)} className={inputCls}>
