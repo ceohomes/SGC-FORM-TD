@@ -62,11 +62,14 @@ const EMPTY: FormState = {
   notes: '',
 };
 
+const QR_URL = 'https://api.qrserver.com/v1/create-qr-code/?size=480x480&data=' + encodeURIComponent('https://sgc-form-td.pages.dev') + '&bgcolor=ffffff&color=1a3a6b&margin=16&ecc=M';
+
 export default function App() {
   const [form, setForm] = useState<FormState>(EMPTY);
   const [step, setStep] = useState<Step>('loading');
   const [errorMsg, setErrorMsg] = useState('');
   const [groupCode, setGroupCode] = useState('');
+  const [showQR, setShowQR] = useState(false);
 
   // Tự động tìm group_code theo tên nhóm từ Supabase
   useEffect(() => {
@@ -198,11 +201,52 @@ export default function App() {
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
 
         {/* Header */}
-        <div className="bg-gradient-to-r from-[#1a3a6b] to-[#1e4480] px-6 py-6">
-          <p className="text-blue-300 text-xs font-bold uppercase tracking-[0.2em] mb-1">SGC – Phòng Tuyển Dụng</p>
-          <h1 className="text-white text-2xl font-black leading-tight">Đăng ký ứng tuyển</h1>
-          <p className="text-blue-200 text-xs mt-1.5 font-medium">{GROUP_NAME}</p>
+        <div className="bg-gradient-to-r from-[#1a3a6b] to-[#1e4480] px-6 py-6 relative">
+          <div className="pr-24">
+            <p className="text-blue-300 text-xs font-bold uppercase tracking-[0.2em] mb-1">SGC – Phòng Tuyển Dụng</p>
+            <h1 className="text-white text-2xl font-black leading-tight">Đăng ký ứng tuyển</h1>
+            <p className="text-blue-200 text-xs mt-1.5 font-medium">{GROUP_NAME}</p>
+          </div>
+
+          {/* QR góc phải */}
+          <div
+            className="absolute top-4 right-4 cursor-pointer"
+            onClick={() => setShowQR(true)}
+            title="Bấm để xem QR lớn hơn"
+          >
+            <div className="bg-white rounded-xl p-1.5 shadow-lg hover:scale-105 transition-transform">
+              <img
+                src={QR_URL}
+                alt="QR ứng tuyển"
+                className="w-16 h-16 rounded-lg block"
+              />
+            </div>
+            <p className="text-blue-300 text-[9px] text-center mt-1 font-medium">Chia sẻ QR</p>
+          </div>
         </div>
+
+        {/* Modal phóng to QR */}
+        {showQR && (
+          <div
+            className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
+            onClick={() => setShowQR(false)}
+          >
+            <div
+              className="bg-white rounded-2xl p-6 flex flex-col items-center gap-4 shadow-2xl max-w-xs w-full"
+              onClick={e => e.stopPropagation()}
+            >
+              <p className="text-slate-500 text-xs font-bold uppercase tracking-wider">Quét để ứng tuyển</p>
+              <img src={QR_URL} alt="QR lớn" className="w-64 h-64 rounded-xl" />
+              <p className="text-slate-400 text-xs text-center">sgc-form-td.pages.dev</p>
+              <button
+                onClick={() => setShowQR(false)}
+                className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-sm font-bold transition-all"
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Fields */}
         <div className="p-6 space-y-4">
