@@ -331,11 +331,11 @@ export default function App() {
         {/* Header */}
         <div className="bg-gradient-to-r from-[#1a3a6b] to-[#1e4480] px-6 py-6 relative">
           <div className="pr-24">
-            <p className="text-red-400 text-xs font-extrabold uppercase tracking-[0.15em] mb-1 leading-tight">
+            <p className="text-blue-300 text-xs font-extrabold uppercase tracking-[0.15em] mb-1 leading-tight">
               CÔNG TY CỔ PHẦN ĐẦU TƯ VÀ XÂY DỰNG SGC
             </p>
             <h1 className="text-white text-2xl font-black leading-tight">Đăng ký ứng tuyển</h1>
-            <p className="text-white/80 text-xs mt-1.5 font-semibold italic">Chúng tôi cần bạn</p>
+            <p className="text-blue-300 text-xs mt-1.5 font-semibold italic">Chúng tôi cần bạn</p>
           </div>
           <div className="absolute top-4 right-4 cursor-pointer" onClick={() => setShowQR(true)} title="Bấm để xem QR lớn hơn">
             <div className="bg-white rounded-xl p-1.5 shadow-lg hover:scale-105 transition-transform">
