@@ -108,7 +108,7 @@ function LocationPicker({
                 placeholder="Tìm tỉnh thành..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                className="flex-1 bg-transparent text-xs text-slate-700 outline-none placeholder:text-slate-400"
+                className="flex-1 bg-transparent text-slate-700 outline-none placeholder:text-slate-400" style={{fontSize: "16px"}}
               />
               {search && (
                 <button onClick={() => setSearch('')} className="text-slate-400 hover:text-slate-600">
@@ -265,7 +265,7 @@ export default function App() {
     }
   };
 
-  const inputCls = "w-full border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all bg-white placeholder:text-slate-400";
+  const inputCls = "w-full border border-slate-200 rounded-xl px-4 py-3 text-slate-800 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all bg-white placeholder:text-slate-400 text-[16px]";
   const labelCls = "block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5";
 
   if (step === 'loading') return (
@@ -331,7 +331,7 @@ export default function App() {
         {/* Header */}
         <div className="bg-gradient-to-r from-[#1a3a6b] to-[#1e4480] px-6 py-6 relative">
           <div className="pr-24">
-            <p className="text-[#ffd166] text-xs font-extrabold uppercase tracking-[0.15em] mb-1 leading-tight">
+            <p className="text-red-400 text-xs font-extrabold uppercase tracking-[0.15em] mb-1 leading-tight">
               CÔNG TY CỔ PHẦN ĐẦU TƯ VÀ XÂY DỰNG SGC
             </p>
             <h1 className="text-white text-2xl font-black leading-tight">Đăng ký ứng tuyển</h1>
